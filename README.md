@@ -1,10 +1,9 @@
-
 # 🎯 STM32 Edge AI IoT Dashboard
 
 > **Đồ án Hệ thống Nhúng & IoT**  
 > Hệ thống giám sát và điều khiển từ xa sử dụng vi điều khiển **STM32F103C8T6**, kết hợp cảm biến nhiệt độ **LM35**, mô phỏng trên **Proteus** và giao diện Web Dashboard thời gian thực. Dự án tích hợp **Edge AI** (Trí tuệ nhân tạo tại biên) để tự động phát hiện bất thường nhiệt độ ngay trên vi điều khiển.
 
-[![Live Demo](https://img.shields.io/badge/Live%20Demo-Render-brightgreen)](https://your-app-name.onrender.com/)
+[![Live Demo](https://img.shields.io/badge/Live%20Demo-Render-brightgreen)](https://stm32-iot-edge-ai.onrender.com/)
 [![C Language](https://img.shields.io/badge/C-Embedded-blue)](https://en.wikipedia.org/wiki/C_(programming_language))
 [![Python](https://img.shields.io/badge/Python-3.9+-yellow)](https://www.python.org/)
 [![Flask](https://img.shields.io/badge/Flask-Web%20Framework-lightgrey)](https://flask.palletsprojects.com/)
@@ -24,8 +23,8 @@
 ### 2. Môi trường
 
 * **Ngôn ngữ:** C (STM32 HAL), Python 3.9+ (Web/Gateway).
-* **Thư viện sử dụng (Python):** `Flask`, `Flask-SocketIO`, `eventlet`, `pyserial`, `gunicorn`.
-* **Phần mềm hỗ trợ:** Proteus 8+, `arm-none-eabi-gcc` (qua MSYS2/MinGW), `com0com` (tạo cổng COM ảo).
+* **Thư viện sử dụng (Python):** `Flask`, `Flask-SocketIO`, `gunicorn`, `pyserial`, `python-dotenv`.
+* **Phần mềm hỗ trợ:** Proteus 8+, `arm-none-eabi-gcc` (qua MSYS2/MinGW), `com0com` (tạo cổng COM ảo), Miniconda/Anaconda.
 
 ### 3. Lệnh
 
@@ -89,7 +88,7 @@
 | **Backend** | Python 3.9+, Flask, Flask-SocketIO |
 | **Frontend** | Tailwind CSS (CLI), Vanilla JS, Socket.IO Client |
 | **Gateway** | Python, pyserial |
-| **Deployment** | Gunicorn (eventlet), Render |
+| **Deployment** | Gunicorn (gthread), Render |
 
 ---
 
@@ -131,40 +130,59 @@ stm32-edge-ai-iot/
 
 ## ⚙️ Hướng dẫn cài đặt & Chạy
 
-### Bước 1: Cấu hình Cổng COM ảo
+### Bước 1: Khởi tạo môi trường Conda
 
-Sử dụng phần mềm `com0com` để tạo cặp cổng COM (ví dụ: COM2 và COM3).
-
-* Cổng **COM2** cấu hình trong Proteus (TEP Serial Monitor).
-* Cổng **COM3** cấu hình trong file `gateway.py`.
-
-### Bước 2: Build và chạy Firmware (Proteus)
+Khuyến nghị sử dụng Conda để quản lý môi trường ảo, tránh xung đột thư viện với hệ thống.
 
 ```bash
-cd firmware
-mingw32-make clean
-mingw32-make -j4
+# Tạo môi trường mới với Python 3.9
+conda create -n stm32_env python=3.9 -y
+
+# Kích hoạt môi trường
+conda activate stm32_env
 ```
 
-Nạp file `build/stm32f103c8_project.hex` vào STM32 trong Proteus. Bấm Play để bắt đầu mô phỏng.
+### Bước 2: Cài đặt thư viện
 
-### Bước 3: Khởi chạy Web Dashboard (Local)
+Di chuyển vào thư mục `web_dashboard` và cài đặt các gói phụ thuộc.
 
 ```bash
 cd web_dashboard
 pip install -r requirements.txt
+```
+
+### Bước 3: Build giao diện Tailwind CSS
+
+Do dự án không sử dụng CDN cho các trang nội bộ, cần build file CSS tĩnh từ Tailwind CLI.
+
+```bash
+.\tailwindcss.exe -i ./static/css/input.css -o ./static/css/output.css --minify
+```
+
+### Bước 4: Cấu hình Cổng COM ảo (Proteus & Gateway)
+
+Sử dụng phần mềm `com0com` để tạo cặp cổng COM (ví dụ: COM2 và COM3).
+
+* Cổng **COM2** cấu hình trong Proteus (TEP Serial Monitor).
+* Cổng **COM3** cấu hình trong file `.env` (biến `COM_PORT`).
+
+### Bước 5: Khởi chạy Web Server (Local)
+
+```bash
 python app.py
 ```
 
 Truy cập giao diện tại: **<http://127.0.0.1:5000>**
 
-### Bước 4: Khởi chạy Gateway (Kết nối Proteus với Cloud)
+### Bước 6: Khởi chạy Gateway (Kết nối Proteus với Cloud)
+
+Mở một cửa sổ CMD mới (đã kích hoạt `stm32_env`), chạy lệnh:
 
 ```bash
 python gateway.py
 ```
 
-*(Lưu ý: Mở file `gateway.py` để cập nhật `COM_PORT = 'COM3'` và `RENDER_SERVER_URL` nếu đã deploy).*
+*(Lưu ý: Mở file `.env` để cập nhật `RENDER_SERVER_URL` trỏ tới link Render thực tế).*
 
 ---
 
@@ -179,7 +197,7 @@ python gateway.py
 
 ## 🚢 Triển khai Online (Live Demo)
 
-👉 **[Live Demo trên Render](https://your-app-name.onrender.com/)**
+👉 **[Live Demo trên Render](https://stm32-iot-edge-ai.onrender.com/)**
 
 ---
 
