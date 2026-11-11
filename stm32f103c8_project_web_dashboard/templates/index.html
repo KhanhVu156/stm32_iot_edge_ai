@@ -271,7 +271,8 @@
             document.getElementById('stat-leds').textContent = checked;
         }
 
-        const socket = io('http://127.0.0.1:5000');
+        // Sử dụng io() không tham số để tự động nhận diện host hiện tại (Local hay Render)
+        const socket = io();
         const terminal = document.getElementById('terminal');
 
         socket.on('connect', () => {
