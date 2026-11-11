@@ -1,0 +1,56 @@
+# ==========================================
+# C/C++ (STM32 Firmware & Makefile)
+# ==========================================
+# Thư mục build
+build/
+Debug/
+Release/
+
+# Các file biên dịch
+*.o
+*.d
+*.elf
+*.hex
+*.bin
+*.map
+*.lst
+*.su
+
+# Các file cấu hình tự sinh của CubeMX (nếu cần giữ lại thì bỏ comment)
+# *.ioc
+# .mxproject
+
+# ==========================================
+# Proteus (Mô phỏng)
+# ==========================================
+*.pdsbak
+*.workspace
+Backup/
+__Previews/
+
+# ==========================================
+# Python (Web Dashboard & Gateway)
+# ==========================================
+# Môi trường ảo
+venv/
+.venv/
+env/
+
+# Cache Python
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Biến môi trường (Rất quan trọng, không được đẩy lên)
+.env
+
+# ==========================================
+# IDE & OS
+# ==========================================
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+# Tailwind CLI (quá nặng để đưa lên GitHub)
+tailwindcss.exe
+tailwindcss-windows-x64.exe

@@ -1,0 +1,12 @@
+services:
+  - type: web
+    name: stm32-iot-dashboard
+    env: python
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn -k eventlet -w 1 app:app
+    envVars:
+      - key: LOCAL_MODE
+        value: "0"
+      - key: SECRET_KEY
+        generateValue: true

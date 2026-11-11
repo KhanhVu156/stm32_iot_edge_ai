@@ -1,0 +1,7 @@
+Flask
+Flask-SocketIO
+pyserial
+gunicorn
+python-dotenv
+requests
+websocket-client
