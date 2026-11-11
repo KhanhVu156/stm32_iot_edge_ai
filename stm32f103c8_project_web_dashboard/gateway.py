@@ -5,7 +5,7 @@ import threading
 import os
 from dotenv import load_dotenv
 
-load_dotenv() # Nạp biến môi trường từ .env
+load_dotenv()
 
 COM_PORT = os.environ.get('COM_PORT', 'COM3')
 BAUD_RATE = int(os.environ.get('BAUD_RATE', 115200))
@@ -20,7 +20,7 @@ def connect():
 
 @sio.event
 def disconnect():
-    print("[GATEWAY] Mat ket noi toi server.")
+    print("[GATEWAY] Mat ket noi toi server. Dang thu ket noi lai...")
 
 @sio.on('gateway_command')
 def on_gateway_command(data):
@@ -60,8 +60,17 @@ if __name__ == '__main__':
     com_thread = threading.Thread(target=read_from_com_and_forward, daemon=True)
     com_thread.start()
 
-    try:
-        sio.connect(RENDER_SERVER_URL)
-        sio.wait()
-    except Exception as e:
-        print(f"[GATEWAY][ERROR] Khong the ket noi toi server Render: {e}")
+    # Vòng lặp tự động kết nối lại nếu server ngủ đông
+    while True:
+        try:
+            print(f"[GATEWAY] Dang ket noi toi {RENDER_SERVER_URL} (Vui long doi neu server dang khoi dong)...")
+            # wait_timeout=60 giúp chờ server Render khởi động xong
+            sio.connect(RENDER_SERVER_URL, wait_timeout=60)
+            sio.wait() # Giữ kết nối chạy mãi mãi
+        except socketio.exceptions.ConnectionError as e:
+            print(f"[GATEWAY][ERROR] Khong the ket noi toi server Render: {e}")
+            print("[GATEWAY] Thu ket noi lai sau 10 giay...")
+            time.sleep(10)
+        except Exception as e:
+            print(f"[GATEWAY][ERROR] Loi khong xac dinh: {e}")
+            time.sleep(10)
