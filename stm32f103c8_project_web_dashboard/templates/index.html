@@ -234,9 +234,18 @@
         updateIcon();
 
         themeToggleBtn.addEventListener('click', () => {
+            // Bat transition toan cuc (tranh khung khi doi mau hang loat)
+            document.documentElement.classList.add('theme-transitioning');
+            
+            // Doi theme
             htmlClass.toggle('dark');
             localStorage.setItem('color-theme', htmlClass.contains('dark') ? 'dark' : 'light');
             updateIcon();
+            
+            // Tat transition sau khi animation ket thuc (300ms)
+            setTimeout(() => {
+                document.documentElement.classList.remove('theme-transitioning');
+            }, 300);
         });
 
         const ledGrid = document.getElementById('ledGrid');

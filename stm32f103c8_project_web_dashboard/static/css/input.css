@@ -140,3 +140,20 @@
         transform: translateX(120%);
     }
 }
+
+/* ============================================================
+   THEME TRANSITION (LIGHT/DARK MODE)
+   - Chi kich hoat transition khi html co class 'theme-transitioning'
+   - Dam bao dong bo mau sac toan bo element (bg, text, border, icon)
+   - Khong gay lag khi hover hay animation khac
+   ============================================================ */
+html.theme-transitioning,
+html.theme-transitioning *,
+html.theme-transitioning *::before,
+html.theme-transitioning *::after {
+    transition: background-color 300ms ease-in-out,
+        border-color 300ms ease-in-out,
+        color 300ms ease-in-out,
+        fill 300ms ease-in-out,
+        stroke 300ms ease-in-out !important;
+}
