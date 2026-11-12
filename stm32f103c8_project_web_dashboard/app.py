@@ -6,14 +6,30 @@ from dotenv import load_dotenv
 from flask import Flask, render_template, request
 from flask_socketio import SocketIO
 
-load_dotenv() # Nạp biến môi trường từ .env
+# === TỰ ĐỘNG PHÁT HIỆN MÔI TRƯỜNG ===
+async_mode = 'threading'
+try:
+    import eventlet
+    eventlet.monkey_patch()
+    async_mode = 'eventlet'
+    print("[PYTHON] Su dung eventlet cho moi truong Production (Render).")
+except ImportError:
+    print("[PYTHON] Khong tim thay eventlet. Su dung threading (Local Windows).")
+
+load_dotenv()
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'secret!')
-# Sử dụng threading thay vì eventlet để tránh lỗi C++ trên Windows
-socketio = SocketIO(app, cors_allowed_origins="*", async_mode='threading')
 
-# Cấu hình COM (Chỉ dùng khi chạy Local)
+# Cấu hình SocketIO với ping_interval và ping_timeout
+socketio = SocketIO(
+    app,
+    cors_allowed_origins="*",
+    async_mode=async_mode,
+    ping_interval=25,  # Gửi ping mỗi 25 giây
+    ping_timeout=60    # Chờ 60 giây trước khi ngắt kết nối
+)
+
 COM_PORT = os.environ.get('COM_PORT', 'COM3')
 BAUD_RATE = int(os.environ.get('BAUD_RATE', 115200))
 ser = None
@@ -56,11 +72,8 @@ def send_command():
         return {'status': 'error', 'message': 'Lệnh rỗng'}
     
     print(f"[WEB] Nhan lenh tu giao dien: {cmd}")
-    
-    # 1. Luôn gửi lệnh qua Socket.IO để Gateway (nếu có) nhận được
     socketio.emit('gateway_command', {'command': cmd})
     
-    # 2. Nếu đang chạy Local và có cổng COM, gửi trực tiếp
     if ser and ser.is_open:
         try:
             with serial_lock:
@@ -78,7 +91,6 @@ def send_command():
             
     return {'status': 'success', 'message': 'Đã gửi lệnh qua Gateway'}
 
-# === CÁC SỰ KIỆN SOCKET.IO CHO GATEWAY ===
 @socketio.on('gateway_connect')
 def handle_gateway_connect():
     print("[RENDER] Gateway (May tinh ca nhan) da ket noi thanh cong!")
