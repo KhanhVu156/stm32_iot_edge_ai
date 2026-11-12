@@ -40,6 +40,13 @@ volatile uint8_t flag_read_temp = 0;
 extern volatile uint8_t flag_new_command;
 extern char uart_buffer[UART_BUFFER_SIZE];
 
+/**
+ * @brief Dieu khien 8 LED tren Port B theo lenh UART.
+ *
+ * LUU Y: Ham nay CHI duoc goi tu UART_ProcessCommand() (app_uart.c).
+ * KHONG duoc goi tu logic AI nua (da xoa 2 vong lap o ban cu).
+ * 8 LED la kenh dieu khien DOC LAP voi Edge AI.
+ */
 void System_SetLedState(uint8_t led_num, uint8_t state) {
     uint16_t pin = 0;
     switch (led_num) {
@@ -139,19 +146,19 @@ int main(void) {
     uint8_t data;
 
     while (1) {
-        // 1. Lấy dữ liệu từ Ring Buffer
+        /* 1. Lay du lieu tu Ring Buffer */
         while (UART_GetByte(&data)) {
             UART_ProcessByte(data);
         }
 
-        // 2. Xử lý lệnh
+        /* 2. Xu ly lenh UART */
         if (flag_new_command) {
             flag_new_command = 0;
             printf("[UART] Nhan duoc: '%s'\r\n", uart_buffer);
             UART_ProcessCommand();
         }
 
-        // 3. Cập nhật LCD
+        /* 3. Cap nhat LCD trang thai RUN/STOP */
         if (flag_update_lcd_state) {
             flag_update_lcd_state = 0;
             LCD_SetCursor(0, 0);
@@ -162,7 +169,7 @@ int main(void) {
             }
         }
 
-        // 4. Đọc nhiệt độ và chạy Edge AI
+        /* 4. Doc nhiet do va chay Edge AI */
         if (flag_read_temp && sys_state == 1) {
             flag_read_temp = 0;
             char lcd_buf[16];
@@ -173,28 +180,25 @@ int main(void) {
                 LCD_SendString("T=ERR   ");
                 printf("[SYSTEM] TEMP: ERR\r\n");
             } else {
-                // Chạy thuật toán AI
                 int is_anomaly = Sensor_DetectAnomaly(last_temp);
 
                 LCD_SetCursor(1, 0);
                 if (is_anomaly) {
                     sprintf(lcd_buf, "T=%d! AI", last_temp);
                     LCD_SendString(lcd_buf);
-                    printf("[AI] TEMP: %d C, AI: ANOMALY\r\n", last_temp);
 
-                    // HÀNH ĐỘNG CẢNH BÁO: Bật toàn bộ 8 LED
-                    for (int i = 1; i <= 8; i++) {
-                        System_SetLedState(i, 1);
-                    }
+                    /* Format moi: [ALERT] TEMP:<x>,ANOMALY
+                       Gateway se parse dong nay de emit SocketIO event
+                       'anomaly'. KHONG dung den 8 LED nua. */
+                    printf("[ALERT] TEMP:%d,ANOMALY\r\n", last_temp);
                 } else {
                     sprintf(lcd_buf, "T=%d C   ", last_temp);
                     LCD_SendString(lcd_buf);
-                    printf("[AI] TEMP: %d C, AI: NORMAL\r\n", last_temp);
 
-                    // Tắt toàn bộ 8 LED khi trở về bình thường
-                    for (int i = 1; i <= 8; i++) {
-                        System_SetLedState(i, 0);
-                    }
+                    /* Format moi: [AI] TEMP:<x>,NORMAL
+                       KHONG tat den 8 LED nua - day chinh la nguyen nhan
+                       den bi tat sau 0.5s o ban cu. */
+                    printf("[AI] TEMP:%d,NORMAL\r\n", last_temp);
                 }
             }
         }

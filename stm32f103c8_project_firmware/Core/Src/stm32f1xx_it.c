@@ -42,9 +42,9 @@
 
 /* External variables --------------------------------------------------------*/
 extern TIM_HandleTypeDef htim2;
-extern UART_HandleTypeDef huart1;  // Khai báo UART handle
+extern UART_HandleTypeDef huart1;  // Khai bao UART handle
 
-/* Khai báo hàm xử lý byte từ app_uart.c */
+/* Khai bao ham xu ly byte tu app_uart.c */
 extern void UART_PushByte(uint8_t data);
 
 /* USER CODE BEGIN EV */
@@ -99,18 +99,33 @@ void TIM2_IRQHandler(void) { HAL_TIM_IRQHandler(&htim2); }
 
 /**
  * @brief This function handles USART1 global interrupt.
+ *
+ * FIX (so voi ban cu): ORE va RXNE phai duoc xu ly bang MOT LAN DOC DR DUY
+ * NHAT. Theo RM0008 muc 27.6.1:
+ *   - Doc USART_SR roi doc USART_DR => clear co ORE
+ *   - Doc USART_DR                 => clear co RXNE
+ * => Chi can mot lan doc DR la clear ca hai co.
+ *
+ * Khi ORE=1: DR van chua BYTE HOP LE CUOI CUNG (byte nhan duoc truoc khi tran).
+ * Byte gay tran (byte tiep theo) bi mat vinh vien - day la han che phan cung
+ * cua STM32F1, khong the khoi phuc. Nhung it nhat phai push byte hop le vao
+ * Ring Buffer thay vi vut bo roi push rac (0x00) nhu code cu.
+ *
+ * Code cu (co bug):
+ *   if (sr & ORE)  { (void)DR; }        // vut byte hop le
+ *   if (sr & RXNE) { data = DR; push; } // DR rong -> push rac
+ * => Mat 2 ky tu moi lan ORE (byte that + byte rac) -> gay loi "LED ON 01"
+ *    thanh "LED O 1" khi go nhanh tren TEP Monitor cua Proteus.
  */
 void USART1_IRQHandler(void) {
+    // Doc SR mot lan duy nhat (snapshot) de tranh race condition
     uint32_t sr = USART1->SR;
 
-    // 1. Xử lý lỗi tràn bộ đệm (Overrun Error) - Phải đọc DR để xóa cờ ORE
-    if (sr & USART_SR_ORE) {
-        (void)USART1->DR;
-    }
-
-    // 2. Nhận dữ liệu nếu thanh ghi nhận không rỗng
-    if (sr & USART_SR_RXNE) {
-        uint8_t data = USART1->DR;
+    // Neu co bat ky su kien nao (nhan duoc byte moi hoac tran bo dem),
+    // doc DR dung MOT lan duy nhat. Byte tra ve la byte hop le cuoi cung.
+    // Doc DR se tu dong clear ca RXNE lan ORE (do SR da duoc doc truoc do).
+    if (sr & (USART_SR_RXNE | USART_SR_ORE)) {
+        uint8_t data = (uint8_t)(USART1->DR & 0xFF);
         UART_PushByte(data);
     }
 }
