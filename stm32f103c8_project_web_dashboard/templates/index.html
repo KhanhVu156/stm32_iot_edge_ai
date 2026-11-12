@@ -11,6 +11,21 @@
 </head>
 <body class="bg-slate-50 text-slate-800 dark:bg-slate-950 dark:text-slate-200 transition-colors duration-300 min-h-screen font-sans antialiased selection:bg-indigo-500/30">
 
+    <!-- Toast container: hien thi canh bao AI (goc tren phai, duoi header).
+         Dat tinh trong HTML de Tailwind CLI scan duoc va de CSS thuan de dang styling. -->
+    <div id="toast-container">
+        <div id="toast-anomaly" role="alert" aria-live="assertive">
+            <div class="toast-content">
+                <span class="toast-icon" aria-hidden="true">!</span>
+                <div class="toast-text">
+                    <p class="toast-title">Canh bao nhiet do</p>
+                    <p id="toast-anomaly-message" class="toast-message"></p>
+                </div>
+                <button type="button" id="toast-anomaly-close" class="toast-close" aria-label="Dong thong bao">&times;</button>
+            </div>
+        </div>
+    </div>
+
     <header class="sticky top-0 z-50 bg-white/80 dark:bg-slate-900/80 backdrop-blur-md border-b border-slate-200 dark:border-slate-800">
         <div class="max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
             <div class="flex items-center gap-3">
@@ -285,6 +300,72 @@
             document.getElementById('connection-dot').className = 'w-1.5 h-1.5 bg-red-500 rounded-full';
         });
 
+        // ============================================================
+        // TOAST CANH BAO AI
+        // Hien thi khi STM32 gui dong [ALERT] TEMP:<x>,ANOMALY.
+        // Tu an sau 5s. Neu nhan them [ALERT] khi dang hien thi, refresh timer.
+        // Neu user bam nut X (dong tay), snooze 10s de tranh spam.
+        // ============================================================
+        let anomalyToastTimer = null;
+        let anomalySnoozeUntil = 0;
+
+        function showAnomalyToast(temp) {
+            // Neu dang trong thoi gian snooze (user vua dong tay), bo qua
+            if (Date.now() < anomalySnoozeUntil) {
+                console.log('[WEB][TOAST] Dang snooze, bo qua alert');
+                return;
+            }
+
+            const toast = document.getElementById('toast-anomaly');
+            const msg = document.getElementById('toast-anomaly-message');
+            if (!toast || !msg) {
+                console.warn('[WEB][TOAST] Khong tim thay #toast-anomaly');
+                return;
+            }
+
+            msg.textContent = `Nhiet do bat thuong: ${temp}\u00B0C`;
+
+            // Reset animation: xoa ca 2 class roi add 'show' de animation chay lai
+            toast.classList.remove('hide', 'show');
+            // Force reflow de animation restart khi show duoc add lai
+            void toast.offsetWidth;
+            toast.classList.add('show');
+
+            console.log(`[WEB][TOAST] Hien thi canh bao: ${temp}C`);
+
+            if (anomalyToastTimer) clearTimeout(anomalyToastTimer);
+            anomalyToastTimer = setTimeout(() => hideAnomalyToast(false), 5000);
+        }
+
+        function hideAnomalyToast(isManual) {
+            const toast = document.getElementById('toast-anomaly');
+            if (!toast) return;
+
+            if (anomalyToastTimer) {
+                clearTimeout(anomalyToastTimer);
+                anomalyToastTimer = null;
+            }
+
+            // Neu dang hien thi moi can chay animation an
+            if (toast.classList.contains('show')) {
+                toast.classList.remove('show');
+                toast.classList.add('hide');
+                setTimeout(() => {
+                    toast.classList.remove('hide');
+                }, 350);
+            }
+
+            if (isManual) {
+                anomalySnoozeUntil = Date.now() + 10000;
+                console.log('[WEB][TOAST] Nguoi dung dong tay - snooze 10s');
+            } else {
+                console.log('[WEB][TOAST] Tu dong an sau 5s');
+            }
+        }
+
+        // Gan su kien cho nut X (chi gan 1 lan)
+        document.getElementById('toast-anomaly-close').addEventListener('click', () => hideAnomalyToast(true));
+
         function appendToTerminal(text) {
             const div = document.createElement('div');
             div.className = 'terminal-line py-0.5 border-b border-slate-200 dark:border-slate-800/50 last:border-0 transition-colors duration-300';
@@ -293,7 +374,11 @@
             let prefix = '>';
             let prefixColor = 'text-slate-400 dark:text-slate-500';
             
-            if (text.includes('[ERROR]')) {
+            if (text.includes('[ALERT]')) {
+                colorClass = 'text-red-700 dark:text-red-200 font-bold bg-red-100 dark:bg-red-950/50 px-1 rounded';
+                prefix = '⚠';
+                prefixColor = 'text-red-600 dark:text-red-400';
+            } else if (text.includes('[ERROR]')) {
                 colorClass = 'text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-950/30';
                 prefix = '✗';
                 prefixColor = 'text-red-500';
@@ -334,21 +419,24 @@
         }
 
         function updateStatsFromText(text) {
-            // 1. Cập nhật Nhiệt độ
+            // 1. Cap nhat nhiet do (ho tro ca format cu "TEMP: 30" va moi "TEMP:30")
             const tempMatch = text.match(/TEMP:\s*(-?\d+|ERR)/);
             if (tempMatch) {
                 document.getElementById('stat-temp').textContent = tempMatch[1];
             }
 
-            // 2. Cập nhật trạng thái AI (NORMAL / ANOMALY)
+            // 2. Cap nhat trang thai AI (NORMAL / ANOMALY)
+            //    Ho tro ca 2 format:
+            //      - Cu:  "[AI] TEMP: 30 C, AI: NORMAL"  / "... AI: ANOMALY"
+            //      - Moi: "[AI] TEMP:30,NORMAL"          / "[ALERT] TEMP:35,ANOMALY"
             const cardTemp = document.getElementById('card-temp');
             const aiStatus = document.getElementById('ai-status');
             const iconNormal = document.getElementById('icon-normal');
             const iconWarning = document.getElementById('icon-warning');
             const tempIconContainer = document.getElementById('temp-icon-container');
 
-            if (text.includes('AI: ANOMALY')) {
-                // Kích hoạt cảnh báo đỏ
+            if (text.includes('ANOMALY')) {
+                // Kich hoat canh bao do
                 cardTemp.classList.add('bg-red-50', 'border-red-300', 'dark:bg-red-900/20', 'dark:border-red-500/50');
                 cardTemp.classList.remove('bg-white', 'dark:bg-slate-900', 'border-slate-200', 'dark:border-slate-800');
                 
@@ -358,9 +446,14 @@
                 tempIconContainer.className = 'w-10 h-10 rounded-full bg-red-100 dark:bg-red-500/20 flex items-center justify-center text-red-500 transition-colors duration-300';
                 iconNormal.classList.add('hidden');
                 iconWarning.classList.remove('hidden');
+
+                // Hien toast neu co nhiet do hop le
+                if (tempMatch && tempMatch[1] !== 'ERR') {
+                    showAnomalyToast(tempMatch[1]);
+                }
             } 
-            else if (text.includes('AI: NORMAL')) {
-                // Trở về bình thường
+            else if (text.includes('NORMAL')) {
+                // Tro ve binh thuong
                 cardTemp.classList.remove('bg-red-50', 'border-red-300', 'dark:bg-red-900/20', 'dark:border-red-500/50');
                 cardTemp.classList.add('bg-white', 'dark:bg-slate-900', 'border-slate-200', 'dark:border-slate-800');
                 
@@ -370,12 +463,15 @@
                 tempIconContainer.className = 'w-10 h-10 rounded-full bg-orange-50 dark:bg-orange-500/10 flex items-center justify-center text-orange-500 transition-colors duration-300';
                 iconNormal.classList.remove('hidden');
                 iconWarning.classList.add('hidden');
+
+                // An toast ngay khi het canh bao (khong snooze)
+                hideAnomalyToast(false);
             }
 
-            // 3. Cập nhật Trạng thái RUN/STOP
+            // 3. Cap nhat trang thai RUN/STOP
             const stateEl = document.getElementById('stat-state');
-            // Thêm điều kiện text.includes('[AI]') để đồng bộ trạng thái khi hệ thống đang chạy
-            if (text.includes('Chuyen sang RUN') || text.includes('[AI]')) {
+            // Them [ALERT] vao dieu kien de state card van update khi chi co alert
+            if (text.includes('Chuyen sang RUN') || text.includes('[AI]') || text.includes('[ALERT]')) {
                 stateEl.textContent = 'RUNNING';
                 stateEl.className = 'inline-flex items-center px-2 py-0.5 rounded text-xs font-bold bg-emerald-100 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-400';
             } else if (text.includes('Chuyen sang STOP')) {
