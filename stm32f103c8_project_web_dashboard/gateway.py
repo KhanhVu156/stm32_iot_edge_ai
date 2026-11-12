@@ -63,8 +63,8 @@ if __name__ == '__main__':
     while True:
         try:
             print(f"[GATEWAY] Dang ket noi toi {RENDER_SERVER_URL}...")
-            # Tăng wait_timeout lên 120 giây để chờ Render khởi động
-            sio.connect(RENDER_SERVER_URL, wait_timeout=120, request_timeout=120)
+            # Chỉ dùng wait_timeout=120
+            sio.connect(RENDER_SERVER_URL, wait_timeout=120)
             sio.wait()
         except socketio.exceptions.ConnectionError as e:
             print(f"[GATEWAY][ERROR] Khong the ket noi toi server Render: {e}")
